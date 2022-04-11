@@ -1,16 +1,18 @@
-const http = require("http");
-const mongoose = require("mongoose");
-const Room = require("./models/rooms");
-const headers = require("./headerConfig");
+const http = require('http');
+const mongoose = require('mongoose');
+const Room = require('./models/rooms');
+const { header } = require('./config');
+const { errorHandle } = require('./handler');
+const { getRoom, addRoom, deleteRoom, patchRoom } = require('./logic');
 //connect db
 mongoose
-  .connect("mongodb://localhost:27017/hotel")
-  .then(() => {
-    console.log("connect success");
-  })
-  .catch((error) => {
-    console.log(error.reason);
-  });
+    .connect('mongodb://localhost:27017/hotel')
+    .then(() => {
+        console.log('connect success');
+    })
+    .catch((error) => {
+        console.log(error.reason);
+    });
 
 //create instance //
 // const testRoom = new Room({
@@ -29,130 +31,53 @@ mongoose
 //   });
 
 const requestListener = async (req, res) => {
-  // console.log(req.url);
-  // res.end();
-  let body = "";
-  req.on("data", (chunk) => {
-    body += chunk;
-  });
-  if (req.url === "/rooms" && req.method === "GET") {
-    const rooms = await Room.find();
-    res.writeHead(200, headers);
-    res.write(
-      JSON.stringify({
-        status: "success",
-        rooms,
-      })
-    );
-    res.end();
-  } else if (req.url === "/rooms" && req.method === "POST") {
-    req.on("end", async () => {
-      try {
-        const data = JSON.parse(body);
-        console.log("data", data);
-        const { name, price, rating } = data;
-        const newRoom = await Room.create({
-          name,
-          price,
-          rating,
-        });
-        res.writeHead(200, headers);
-        res.write(
-          JSON.stringify({
-            status: "success",
-            rooms: newRoom,
-          })
-        );
-        res.end();
-      } catch (error) {
-        res.writeHead(400, headers);
-        res.write(
-          JSON.stringify({
-            status: "fail",
-            message: "欄位沒有正確，或是沒有此id",
-            error: error,
-          })
-        );
-        console.log(error);
-        res.end();
-      }
+    let body = '';
+    req.on('data', (chunk) => {
+        body += chunk;
     });
-  } else if (req.url === "/rooms" && req.method === "DELETE") {
-    const rooms = await Room.deleteMany({});
-    res.writeHead(200, headers);
-    res.write(
-      JSON.stringify({
-        status: "success",
-        rooms: [],
-      })
-    );
-    res.end();
-  } else if (req.url.startsWith("/rooms/") && req.method === "DELETE") {
-    const id = req.url.split("/").pop();
-    //刪除單筆
-    try {
-      const rooms = await Room.findByIdAndDelete(id);
-      res.writeHead(200, headers);
-      res.write(
-        JSON.stringify({
-          status: "success",
-          // rooms: [],
-        })
-      );
-      res.end();
-    } catch (error) {
-      res.writeHead(400, headers);
-      res.write(
-        JSON.stringify({
-          status: "fail",
-          message: "沒有此id",
-          error: error,
-        })
-      );
-      console.log(error);
-      res.end();
+    if (req.url === '/rooms') {
+        switch (req.method) {
+            case 'GET':
+                getRoom(res);
+                break;
+            case 'POST':
+                addRoom(res, req, body);
+                break;
+            case 'DELETE':
+                deleteRoom.deleteRoomAll(res);
+                break;
+            default:
+                break;
+        }
+    } else if (req.url.startsWith('/rooms/')) {
+        switch (req.method) {
+            case 'DELETE':
+                getRoom(res);
+                break;
+            case 'PATCH':
+                addRoom(res, req, body);
+                break;
+            default:
+                break;
+        }
+    } else {
+        errorHandle(res, {}, '無此網路路由', 404);
     }
-  } else if (req.url.startsWith("/rooms/") && req.method === "PATCH") {
-    const id = req.url.split("/").pop();
-    req.on("end", async () => {
-      const { price } = JSON.parse(body);
-      try {
-        const rooms = await Room.findByIdAndUpdate(id, { price });
-        res.writeHead(200, headers);
-        res.write(
-          JSON.stringify({
-            status: "success",
-            rooms
-          })
-        );
-        res.end();
-      } catch (error) {
-        res.writeHead(400, headers);
-        res.write(
-          JSON.stringify({
-            status: "fail",
-            message: "沒有此id",
-            error: error,
-          })
-        );
-        res.end();
-      }
-    });
-    //修改單筆
-  } else {
-    res.writeHead(404, headers);
-    res.write(
-      JSON.stringify({
-        status: "false",
-        message: "無此網路路由",
-      })
-    );
-    res.end();
-  }
+
+    // if (req.url === '/rooms' && req.method === 'GET') {
+    //     getRoom(res);
+    // } else if (req.url === '/rooms' && req.method === 'POST') {
+    //     addRoom(res, req, body);
+    // } else if (req.url === '/rooms' && req.method === 'DELETE') {
+    //     deleteRoom.deleteRoomAll(res);
+    // } else if (req.url.startsWith('/rooms/') && req.method === 'DELETE') {
+    //     deleteRoom.deleteRoomSingle(res, req);
+    // } else if (req.url.startsWith('/rooms/') && req.method === 'PATCH') {
+    //     patchRoom(res, req, body);
+    // } else {
+    //     errorHandle(res, {}, '無此網路路由', 404);
+    // }
 };
-/**
- * @description
- */
 
 const server = http.createServer(requestListener);
 server.listen(3005);
